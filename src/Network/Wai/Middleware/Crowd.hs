@@ -25,12 +25,12 @@ import qualified Data.ByteString as S
 import System.Environment
 import Data.Text.Encoding (encodeUtf8, decodeUtf8With)
 import Data.Text.Encoding.Error (lenientDecode)
-import Web.Authenticate.OpenId
 import Network.HTTP.Client (newManager, Manager)
 import Network.HTTP.Client.TLS
 import Control.Monad.Trans.Resource
 import qualified Data.Text as T
 import Data.Binary
+import Network.Wai.OpenId
 
 -- | Settings for creating the Crowd middleware.
 --
@@ -119,13 +119,8 @@ mkCrowdMiddleware CrowdSettings {..} = do
             Just (CSLoggedIn _) -> app req respond
             _ -> case pathInfo req of
                 ["_crowd_middleware", "complete"] -> do
-                    let dec = decodeUtf8With lenientDecode
-                        params =
-                            [ (dec k, dec v)
-                            | (k, Just v) <- queryString req
-                            ]
-                    eres <- try $ runResourceT $ authenticateClaimed params man
-                    case eres :: Either AuthenticateException OpenIdResponse of
+                    eres <- openIdComplete req man
+                    case eres of
                         Left e -> respond $ responseLBS status200 [] "Login failed"
                         Right res ->
                             case T.stripPrefix prefix $ identifier $ oirOpLocal res of
@@ -158,4 +153,3 @@ mkCrowdMiddleware CrowdSettings {..} = do
                         ]
                         "Logging in"
                     app req respond
-
