@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
-module Network.Wai.Middleware.Client
+module Network.Wai.Middleware.Crowd
     ( -- * Settings
       CrowdSettings
     , defaultCrowdSettings
@@ -12,6 +12,8 @@ module Network.Wai.Middleware.Client
     , setCrowdManager
       -- * Middleware
     , mkCrowdMiddleware
+      -- * Helpers
+    , smartApproot
     ) where
 
 import           Blaze.ByteString.Builder  (fromByteString, toByteString)
@@ -28,9 +30,9 @@ import           Network.HTTP.Types        (Header, status200, status303)
 import           Network.Wai               (Middleware, Request, pathInfo,
                                             rawPathInfo, rawQueryString,
                                             responseBuilder, responseLBS)
+import           Network.Wai.Approot
 import           Network.Wai.ClientSession
 import           Network.Wai.OpenId
-import           System.Environment        (getEnv)
 
 -- | Settings for creating the Crowd middleware.
 --
@@ -93,9 +95,7 @@ defaultCrowdSettings :: CrowdSettings
 defaultCrowdSettings = CrowdSettings
     { csGetKey = getDefaultKey
     , csCrowdRoot = "http://localhost:8095/openidserver"
-    , csGetApproot = do
-        ar <- fmap T.pack $ getEnv "APPROOT"
-        return $ const $ return ar
+    , csGetApproot = smartApproot
     , csGetManager = newManager tlsManagerSettings
     }
 

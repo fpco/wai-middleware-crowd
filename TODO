@@ -1,3 +1,2 @@
 Proper cookie duration
-Factor out cookie/auth helpers
-Make approot getting intelligent by default (host header, detect if secure)
+Include version/Git commit in executable output
