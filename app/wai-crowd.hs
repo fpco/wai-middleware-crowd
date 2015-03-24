@@ -15,13 +15,12 @@ import           Network.Wai.Application.Static (defaultFileServerSettings,
 import           Network.Wai.Handler.Warp       (run)
 import           Network.Wai.Middleware.Crowd
 import           Options.Applicative
-import qualified Paths_wai_middleware_crowd     as Paths
 import           Web.ClientSession              (getKey)
 
 versionString :: String
 versionString = concat
     [ "Version "
-    , showVersion Paths.version
+    , showVersion waiMiddlewareCrowdVersion
     , ", Git revision "
     , $gitHash
     , if $gitDirty then " (dirty)" else ""

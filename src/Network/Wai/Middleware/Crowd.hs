@@ -14,25 +14,29 @@ module Network.Wai.Middleware.Crowd
     , mkCrowdMiddleware
       -- * Helpers
     , smartApproot
+    , defaultCrowdRoot
+    , waiMiddlewareCrowdVersion
     ) where
 
-import           Blaze.ByteString.Builder  (fromByteString, toByteString)
-import           Data.Binary               (Binary)
-import qualified Data.ByteString           as S
-import           Data.Monoid               ((<>))
-import qualified Data.Text                 as T
-import           Data.Text.Encoding        (decodeUtf8With, encodeUtf8)
-import           Data.Text.Encoding.Error  (lenientDecode)
-import           GHC.Generics              (Generic)
-import           Network.HTTP.Client       (Manager, newManager)
-import           Network.HTTP.Client.TLS   (tlsManagerSettings)
-import           Network.HTTP.Types        (Header, status200, status303)
-import           Network.Wai               (Middleware, Request, pathInfo,
-                                            rawPathInfo, rawQueryString,
-                                            responseBuilder, responseLBS)
+import           Blaze.ByteString.Builder   (fromByteString, toByteString)
+import           Data.Binary                (Binary)
+import qualified Data.ByteString            as S
+import           Data.Monoid                ((<>))
+import qualified Data.Text                  as T
+import           Data.Text.Encoding         (decodeUtf8With, encodeUtf8)
+import           Data.Text.Encoding.Error   (lenientDecode)
+import           Data.Version               (Version)
+import           GHC.Generics               (Generic)
+import           Network.HTTP.Client        (Manager, newManager)
+import           Network.HTTP.Client.TLS    (tlsManagerSettings)
+import           Network.HTTP.Types         (Header, status200, status303)
+import           Network.Wai                (Middleware, Request, pathInfo,
+                                             rawPathInfo, rawQueryString,
+                                             responseBuilder, responseLBS)
 import           Network.Wai.Approot
 import           Network.Wai.ClientSession
 import           Network.Wai.OpenId
+import qualified Paths_wai_middleware_crowd as Paths
 
 -- | Settings for creating the Crowd middleware.
 --
@@ -132,13 +136,11 @@ mkCrowdMiddleware CrowdSettings {..} = do
                         Right res ->
                             case T.stripPrefix prefix $ identifier $ oirOpLocal res of
                                 Just username -> do
-                                    print $ CSLoggedIn $ encodeUtf8 username
                                     cookie <- saveCrowdState key $ CSLoggedIn $ encodeUtf8 username
                                     let dest =
                                             case cs of
                                                 Just (CSNeedRedirect bs) -> bs
                                                 _ -> "/"
-                                    print cookie
                                     respond $ responseBuilder status200
                                         [ ("Location", dest)
                                         , cookie
@@ -160,3 +162,9 @@ mkCrowdMiddleware CrowdSettings {..} = do
                         ]
                         "Logging in"
                     app req respond
+
+-- | Current version
+--
+-- Since 0.1.0
+waiMiddlewareCrowdVersion :: Version
+waiMiddlewareCrowdVersion = Paths.version
