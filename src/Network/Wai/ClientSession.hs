@@ -6,19 +6,23 @@ module Network.Wai.ClientSession
     , getDefaultKey
     ) where
 
-import Blaze.ByteString.Builder (toByteString)
-import Web.ClientSession
-import Network.Wai
-import Web.Cookie
-import Data.Binary
+import           Blaze.ByteString.Builder   (toByteString)
+import           Control.Monad              (guard)
+import           Data.Binary                (Binary, decodeOrFail, encode)
+import qualified Data.ByteString            as S
 import qualified Data.ByteString.Base64.URL as B64
-import qualified Data.ByteString.Lazy as L
-import qualified Data.ByteString as S
-import Data.CaseInsensitive (CI)
-import Data.Maybe (listToMaybe)
-import Control.Monad (guard)
-import Network.HTTP.Types
-import Data.Time (DiffTime)
+import qualified Data.ByteString.Lazy       as L
+import           Data.CaseInsensitive       (CI)
+import           Data.Maybe                 (listToMaybe)
+import           Data.Time                  (DiffTime)
+import           Network.HTTP.Types         (Header)
+import           Network.Wai                (Request, requestHeaders)
+import           Web.ClientSession          (Key, decrypt, encryptIO,
+                                             getDefaultKey)
+import           Web.Cookie                 (def, parseCookies, renderSetCookie,
+                                             setCookieHttpOnly, setCookieMaxAge,
+                                             setCookieName, setCookiePath,
+                                             setCookieValue)
 
 loadCookieValue :: Binary value
                 => Key
@@ -31,7 +35,8 @@ loadCookieValue key name req = return $ listToMaybe $ do
     (name', v') <- parseCookies v
     guard $ name == name'
     Right v'' <- return $ B64.decode v'
-    Right (_, _, res) <- return $ decodeOrFail $ L.fromStrict v''
+    Just v''' <- return $ decrypt key v''
+    Right (_, _, res) <- return $ decodeOrFail $ L.fromStrict v'''
     return res
 
 saveCookieValue :: Binary value

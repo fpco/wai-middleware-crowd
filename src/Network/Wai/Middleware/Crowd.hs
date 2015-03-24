@@ -1,6 +1,6 @@
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE RecordWildCards   #-}
 module Network.Wai.Middleware.Client
     ( -- * Settings
       CrowdSettings
@@ -14,23 +14,23 @@ module Network.Wai.Middleware.Client
     , mkCrowdMiddleware
     ) where
 
-import Network.Wai.ClientSession
-import GHC.Generics (Generic)
-import Blaze.ByteString.Builder (toByteString, fromByteString)
-import Network.Wai
-import Control.Exception
-import Data.Monoid
-import Network.HTTP.Types
-import qualified Data.ByteString as S
-import System.Environment
-import Data.Text.Encoding (encodeUtf8, decodeUtf8With)
-import Data.Text.Encoding.Error (lenientDecode)
-import Network.HTTP.Client (newManager, Manager)
-import Network.HTTP.Client.TLS
-import Control.Monad.Trans.Resource
-import qualified Data.Text as T
-import Data.Binary
-import Network.Wai.OpenId
+import           Blaze.ByteString.Builder  (fromByteString, toByteString)
+import           Data.Binary               (Binary)
+import qualified Data.ByteString           as S
+import           Data.Monoid               ((<>))
+import qualified Data.Text                 as T
+import           Data.Text.Encoding        (decodeUtf8With, encodeUtf8)
+import           Data.Text.Encoding.Error  (lenientDecode)
+import           GHC.Generics              (Generic)
+import           Network.HTTP.Client       (Manager, newManager)
+import           Network.HTTP.Client.TLS   (tlsManagerSettings)
+import           Network.HTTP.Types        (Header, status200, status303)
+import           Network.Wai               (Middleware, Request, pathInfo,
+                                            rawPathInfo, rawQueryString,
+                                            responseBuilder, responseLBS)
+import           Network.Wai.ClientSession
+import           Network.Wai.OpenId
+import           System.Environment        (getEnv)
 
 -- | Settings for creating the Crowd middleware.
 --
@@ -39,8 +39,8 @@ import Network.Wai.OpenId
 --
 -- Since 0.1.0
 data CrowdSettings = CrowdSettings
-    { csGetKey :: IO Key
-    , csCrowdRoot :: T.Text
+    { csGetKey     :: IO Key
+    , csCrowdRoot  :: T.Text
     , csGetApproot :: IO (Request -> IO T.Text)
     , csGetManager :: IO Manager
     }
@@ -86,6 +86,9 @@ setCrowdApprootGeneric x cs = cs { csGetApproot = x }
 setCrowdManager :: IO Manager -> CrowdSettings -> CrowdSettings
 setCrowdManager x cs = cs { csGetManager = x }
 
+-- | Default value for 'CrowdSettings'.
+--
+-- Since 0.1.0
 defaultCrowdSettings :: CrowdSettings
 defaultCrowdSettings = CrowdSettings
     { csGetKey = getDefaultKey
@@ -98,14 +101,18 @@ defaultCrowdSettings = CrowdSettings
 
 data CrowdState = CSNeedRedirect S.ByteString
                 | CSLoggedIn S.ByteString
-                | CSNoState
     deriving (Generic, Show)
 instance Binary CrowdState
 
+csKey :: S.ByteString
 csKey = "crowd_state"
 
+saveCrowdState :: Key -> CrowdState -> IO Header
 saveCrowdState key cs = saveCookieValue key csKey 3600 cs
 
+-- | Create the Crowd middleware based on the given settings.
+--
+-- Since 0.1.0
 mkCrowdMiddleware :: CrowdSettings -> IO Middleware
 mkCrowdMiddleware CrowdSettings {..} = do
     key <- csGetKey

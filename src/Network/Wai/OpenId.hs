@@ -7,15 +7,18 @@ module Network.Wai.OpenId
     , runResourceT
     ) where
 
-import Web.Authenticate.OpenId
-import Network.Wai
-import Network.HTTP.Client (Manager)
-import Control.Exception
-import Control.Monad.Trans.Resource
-import Data.Text.Encoding (decodeUtf8With)
-import Data.Text.Encoding.Error (lenientDecode)
-import Control.Arrow ((***))
-import qualified Data.Text as T
+import           Control.Arrow                ((***))
+import           Control.Exception            (try)
+import           Control.Monad.Trans.Resource (runResourceT)
+import qualified Data.Text                    as T
+import           Data.Text.Encoding           (decodeUtf8With)
+import           Data.Text.Encoding.Error     (lenientDecode)
+import           Network.HTTP.Client          (Manager)
+import           Network.Wai                  (Request, queryString)
+import           Web.Authenticate.OpenId      (AuthenticateException (..),
+                                               Identifier (..), OpenIdResponse,
+                                               authenticateClaimed,
+                                               getForwardUrl, oirOpLocal)
 
 openIdComplete :: Request -> Manager -> IO (Either AuthenticateException OpenIdResponse)
 openIdComplete req man =
