@@ -51,7 +51,7 @@ loadCookieValue key name req = do
         Right v'' <- return $ B64.decode v'
         Just v''' <- return $ decrypt key v''
         Right (_, _, Wrapper res expi) <- return $ decodeOrFail $ L.fromStrict v'''
-        guard $ expi <= now
+        guard $ expi >= now
         return res
 
 saveCookieValue :: Binary value
