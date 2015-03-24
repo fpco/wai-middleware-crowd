@@ -14,7 +14,7 @@ import           Network.Wai.Application.Static (defaultFileServerSettings,
                                                  staticApp)
 import           Network.Wai.Handler.Warp       (run)
 import           Network.Wai.Middleware.Crowd
-import           Options.Applicative
+import           SimpleOptions
 import           Web.ClientSession              (getKey)
 
 versionString :: String
@@ -59,34 +59,8 @@ basicSettingsParser = BasicSettings
        <> help "Number of seconds to keep auth cookie active"
        <> value 3600 )
 
-opts :: ParserInfo (BasicSettings, Service)
-opts =
-    info
-        (helpOption <*> versionOption <*> config)
-        ( fullDesc
-       <> progDesc "Run a Crowd-authenticated file server or reverse proxy"
-       <> header "wai-crowd - a Crowd-authenticated server" )
-  where
-    helpOption =
-        abortOption ShowHelpText $
-        long "help" <>
-        help "Show this help text"
-    versionOption =
-        infoOption
-            versionString
-            (long "version" <>
-             help "Show version")
-    config = (,) <$> basicSettingsParser <*> serviceParser
-
 data Service = ServiceFiles FileServer
              | ServiceProxy ReverseProxy
-
-serviceParser :: Parser Service
-serviceParser = subparser $
-    ( command "file-server"
-        (info (ServiceFiles <$> fileServerParser) (progDesc "File server")) ) <>
-    ( command "reverse-proxy"
-        (info (ServiceProxy <$> reverseProxyParser) (progDesc "Reverse proxy")))
 
 data FileServer = FileServer
     { fsRoot :: FilePath
@@ -117,7 +91,13 @@ serviceToApp manager (ServiceProxy (ReverseProxy host port)) =
 
 main :: IO ()
 main = do
-    (BasicSettings {..}, service) <- execParser opts
+    (BasicSettings {..}, service) <- simpleOptions
+        versionString
+        "wai-crowd - a Crowd-authenticated server"
+        "Run a Crowd-authenticated file server or reverse proxy"
+        basicSettingsParser $ do
+            addCommand "file-server" "File server" ServiceFiles fileServerParser
+            addCommand "reverse-proxy" "Reverse proxy" ServiceProxy reverseProxyParser
     manager <- newManager tlsManagerSettings
     let cs = (if null keyFile then id else setCrowdKey (getKey keyFile))
            $ (if T.null crowdRoot then id else setCrowdRoot crowdRoot)
