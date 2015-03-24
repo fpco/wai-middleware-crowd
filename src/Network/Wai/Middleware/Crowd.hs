@@ -14,7 +14,6 @@ module Network.Wai.Middleware.Crowd
     , mkCrowdMiddleware
       -- * Helpers
     , smartApproot
-    , defaultCrowdRoot
     , waiMiddlewareCrowdVersion
     ) where
 
