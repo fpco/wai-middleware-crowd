@@ -10,6 +10,7 @@ module Network.Wai.Middleware.Crowd
     , setCrowdApprootStatic
     , setCrowdApprootGeneric
     , setCrowdManager
+    , setCrowdAge
       -- * Middleware
     , mkCrowdMiddleware
       -- * Helpers
@@ -48,6 +49,7 @@ data CrowdSettings = CrowdSettings
     , csCrowdRoot  :: T.Text
     , csGetApproot :: IO (Request -> IO T.Text)
     , csGetManager :: IO Manager
+    , csAge        :: Int
     }
 
 -- | Set the function to get client session key for encrypting cookie data.
@@ -91,6 +93,14 @@ setCrowdApprootGeneric x cs = cs { csGetApproot = x }
 setCrowdManager :: IO Manager -> CrowdSettings -> CrowdSettings
 setCrowdManager x cs = cs { csGetManager = x }
 
+-- | Number of seconds to keep an authentication cookie active
+--
+-- Default: 3600
+--
+-- Since 0.1.0
+setCrowdAge :: Int -> CrowdSettings -> CrowdSettings
+setCrowdAge x cs = cs { csAge = x }
+
 -- | Default value for 'CrowdSettings'.
 --
 -- Since 0.1.0
@@ -100,6 +110,7 @@ defaultCrowdSettings = CrowdSettings
     , csCrowdRoot = "http://localhost:8095/openidserver"
     , csGetApproot = smartApproot
     , csGetManager = newManager tlsManagerSettings
+    , csAge = 3600
     }
 
 data CrowdState = CSNeedRedirect S.ByteString
@@ -110,8 +121,8 @@ instance Binary CrowdState
 csKey :: S.ByteString
 csKey = "crowd_state"
 
-saveCrowdState :: Key -> CrowdState -> IO Header
-saveCrowdState key cs = saveCookieValue key csKey 3600 cs
+saveCrowdState :: Key -> Int -> CrowdState -> IO Header
+saveCrowdState key age cs = saveCookieValue key csKey age cs
 
 -- | Create the Crowd middleware based on the given settings.
 --
@@ -135,12 +146,12 @@ mkCrowdMiddleware CrowdSettings {..} = do
                         Right res ->
                             case T.stripPrefix prefix $ identifier $ oirOpLocal res of
                                 Just username -> do
-                                    cookie <- saveCrowdState key $ CSLoggedIn $ encodeUtf8 username
+                                    cookie <- saveCrowdState key csAge $ CSLoggedIn $ encodeUtf8 username
                                     let dest =
                                             case cs of
                                                 Just (CSNeedRedirect bs) -> bs
                                                 _ -> "/"
-                                    respond $ responseBuilder status200
+                                    respond $ responseBuilder status303
                                         [ ("Location", dest)
                                         , cookie
                                         ]
@@ -153,7 +164,7 @@ mkCrowdMiddleware CrowdSettings {..} = do
                         Nothing
                         []
                         man
-                    cookie <- saveCrowdState key $ CSNeedRedirect
+                    cookie <- saveCrowdState key csAge $ CSNeedRedirect
                             $ rawPathInfo req <> rawQueryString req
                     respond $ responseLBS status303
                         [ ("Location", encodeUtf8 loc)

@@ -30,6 +30,7 @@ data BasicSettings = BasicSettings
     { warpPort  :: Int
     , keyFile   :: FilePath
     , crowdRoot :: T.Text
+    , age       :: Int
     }
     deriving Show
 
@@ -52,6 +53,11 @@ basicSettingsParser = BasicSettings
        <> metavar "CROWD-ROOT"
        <> help "Base URL for the Crowd installation"
        <> value "" ))
+    <*> option auto
+        ( long "cookie-age"
+       <> metavar "COOKIE-AGE"
+       <> help "Number of seconds to keep auth cookie active"
+       <> value 3600 )
 
 opts :: ParserInfo (BasicSettings, Service)
 opts =
@@ -116,6 +122,7 @@ main = do
     let cs = (if null keyFile then id else setCrowdKey (getKey keyFile))
            $ (if T.null crowdRoot then id else setCrowdRoot crowdRoot)
            $ setCrowdManager (return manager)
+           $ setCrowdAge age
            $ defaultCrowdSettings
     crowdMiddleware <- mkCrowdMiddleware cs
     app <- serviceToApp manager service
