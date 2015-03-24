@@ -1,14 +1,26 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveGeneric #-}
+module Network.Wai.Middleware.Client
+    ( -- * Settings
+      CrowdSettings
+    , defaultCrowdSettings
+    , setCrowdKey
+    , setCrowdRoot
+    , setCrowdApprootStatic
+    , setCrowdApprootGeneric
+    , setCrowdManager
+      -- * Middleware
+    , mkCrowdMiddleware
+    ) where
+
+import Network.Wai.ClientSession
 import GHC.Generics (Generic)
 import Blaze.ByteString.Builder (toByteString, fromByteString)
 import Network.Wai
 import Control.Exception
-import Network.Wai.Handler.Warp (run)
 import Data.Monoid
 import Network.HTTP.Types
-import Web.ClientSession
 import qualified Data.ByteString as S
 import System.Environment
 import Data.Text.Encoding (encodeUtf8, decodeUtf8With)
@@ -19,31 +31,68 @@ import Network.HTTP.Client.TLS
 import Control.Monad.Trans.Resource
 import qualified Data.Text as T
 import Data.Binary
-import Web.Cookie
-import qualified Data.ByteString.Lazy as L
-import qualified Data.ByteString.Base64.URL as B64
-import Network.Wai.Application.Static
 
-app :: Application
-app _ respond = respond $ responseLBS status200 [] "I'm a teapot!"
-
-main :: IO ()
-main = do
-    crowdMiddleware <- mkCrowdMiddleware defaultCrowdSettings
-    run 3000 $ crowdMiddleware $ staticApp $ defaultFileServerSettings "."
-
+-- | Settings for creating the Crowd middleware.
+--
+-- To create a value, use 'defaultCrowdSettings' and then various setter
+-- functions.
+--
+-- Since 0.1.0
 data CrowdSettings = CrowdSettings
     { csGetKey :: IO Key
     , csCrowdRoot :: T.Text
-    , csGetApproot :: IO T.Text
+    , csGetApproot :: IO (Request -> IO T.Text)
     , csGetManager :: IO Manager
     }
+
+-- | Set the function to get client session key for encrypting cookie data.
+--
+-- Default: 'getDefaultKey'
+--
+-- Since 0.1.0
+setCrowdKey :: IO Key -> CrowdSettings -> CrowdSettings
+setCrowdKey x cs = cs { csGetKey = x }
+
+-- | Set the root of the Crowd service. This is used as an OpenID endpoint.
+--
+-- Default: @http://localhost:8095/openidserver@
+--
+-- Since 0.1.0
+setCrowdRoot :: T.Text -> CrowdSettings -> CrowdSettings
+setCrowdRoot x cs = cs { csCrowdRoot = x }
+
+-- | The application root for this application.
+--
+-- This is used for constructing completion URLs when communicating with
+-- Crowd's OpenID implementation.
+--
+-- Default: use the APPROOT environment variable.
+--
+-- Since 0.1.0
+setCrowdApprootStatic :: T.Text -> CrowdSettings -> CrowdSettings
+setCrowdApprootStatic x = setCrowdApprootGeneric $ return $ const $ return x
+
+-- | More generalized version of 'setCrowdApprootStatic'.
+--
+-- Since 0.1.0
+setCrowdApprootGeneric :: IO (Request -> IO T.Text) -> CrowdSettings -> CrowdSettings
+setCrowdApprootGeneric x cs = cs { csGetApproot = x }
+
+-- | Acquire an HTTP connection manager.
+--
+-- Default: get a new tls-enabled manager.
+--
+-- Since 0.1.0
+setCrowdManager :: IO Manager -> CrowdSettings -> CrowdSettings
+setCrowdManager x cs = cs { csGetManager = x }
 
 defaultCrowdSettings :: CrowdSettings
 defaultCrowdSettings = CrowdSettings
     { csGetKey = getDefaultKey
     , csCrowdRoot = "http://localhost:8095/openidserver"
-    , csGetApproot = fmap T.pack $ getEnv "APPROOT"
+    , csGetApproot = do
+        ar <- fmap T.pack $ getEnv "APPROOT"
+        return $ const $ return ar
     , csGetManager = newManager tlsManagerSettings
     }
 
@@ -55,34 +104,19 @@ instance Binary CrowdState
 
 csKey = "crowd_state"
 
-loadCrowdState key req =
-    case lookup csKey cookies >>= decrypt key . B64.decodeLenient of
-        Just val | Right (_, _, res) <- decodeOrFail (L.fromStrict val) -> return res
-        _ -> return CSNoState
-  where
-    cookies = concat [parseCookies v | (k, v) <- requestHeaders req, k == "cookie"]
-
-saveCrowdState key cs = do
-    val <- encryptIO key $ L.toStrict $ encode cs
-    return $ toByteString $ renderSetCookie def
-        { setCookieName = csKey
-        , setCookieValue = B64.encode val
-        , setCookiePath = Just "/"
-        , setCookieMaxAge = Just 3600
-        , setCookieHttpOnly = True
-        }
+saveCrowdState key cs = saveCookieValue key csKey 3600 cs
 
 mkCrowdMiddleware :: CrowdSettings -> IO Middleware
 mkCrowdMiddleware CrowdSettings {..} = do
     key <- csGetKey
-    approot <- csGetApproot
+    getApproot <- csGetApproot
     man <- csGetManager
     let prefix = csCrowdRoot <> "/users/"
     return $ \app req respond -> do
-        cs <- loadCrowdState key req
-        print (cs, pathInfo req)
+        cs <- loadCookieValue key csKey req
+
         case cs of
-            CSLoggedIn _ -> app req respond
+            Just (CSLoggedIn _) -> app req respond
             _ -> case pathInfo req of
                 ["_crowd_middleware", "complete"] -> do
                     let dec = decodeUtf8With lenientDecode
@@ -100,15 +134,16 @@ mkCrowdMiddleware CrowdSettings {..} = do
                                     cookie <- saveCrowdState key $ CSLoggedIn $ encodeUtf8 username
                                     let dest =
                                             case cs of
-                                                CSNeedRedirect bs -> bs
+                                                Just (CSNeedRedirect bs) -> bs
                                                 _ -> "/"
                                     print cookie
                                     respond $ responseBuilder status200
                                         [ ("Location", dest)
-                                        , ("Set-Cookie", cookie)
+                                        , cookie
                                         ]
                                         (fromByteString "Redirecting to " <> fromByteString dest)
                 _ -> do
+                    approot <- getApproot req
                     loc <- runResourceT $ getForwardUrl
                         (csCrowdRoot <> "/op")
                         (approot <> "/_crowd_middleware/complete")
@@ -119,7 +154,7 @@ mkCrowdMiddleware CrowdSettings {..} = do
                             $ rawPathInfo req <> rawQueryString req
                     respond $ responseLBS status303
                         [ ("Location", encodeUtf8 loc)
-                        , ("Set-Cookie", cookie)
+                        , cookie
                         ]
                         "Logging in"
                     app req respond
