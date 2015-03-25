@@ -3,8 +3,6 @@
 {-# LANGUAGE TemplateHaskell   #-}
 import           Data.String                    (fromString)
 import qualified Data.Text                      as T
-import           Data.Version                   (showVersion)
-import           Development.GitRev             (gitDirty, gitHash)
 import           Network.HTTP.Client            (Manager, newManager)
 import           Network.HTTP.Client.TLS        (tlsManagerSettings)
 import           Network.HTTP.ReverseProxy      (ProxyDest (..), WaiProxyResponse (WPRProxyDest),
@@ -16,15 +14,6 @@ import           Network.Wai.Handler.Warp       (run)
 import           Network.Wai.Middleware.Crowd
 import           SimpleOptions
 import           Web.ClientSession              (getKey)
-
-versionString :: String
-versionString = concat
-    [ "Version "
-    , showVersion waiMiddlewareCrowdVersion
-    , ", Git revision "
-    , $gitHash
-    , if $gitDirty then " (dirty)" else ""
-    ]
 
 data BasicSettings = BasicSettings
     { warpPort  :: Int
@@ -92,7 +81,7 @@ serviceToApp manager (ServiceProxy (ReverseProxy host port)) =
 main :: IO ()
 main = do
     (BasicSettings {..}, service) <- simpleOptions
-        versionString
+        $(simpleVersion waiMiddlewareCrowdVersion)
         "wai-crowd - a Crowd-authenticated server"
         "Run a Crowd-authenticated file server or reverse proxy"
         basicSettingsParser $ do

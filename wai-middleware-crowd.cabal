@@ -50,6 +50,7 @@ executable wai-crowd
                      , http-client-tls
                      , http-reverse-proxy    >= 0.4
                      , optparse-applicative  >= 0.11 && < 0.12
+                     , template-haskell
                      , text
                      , transformers
                      , wai

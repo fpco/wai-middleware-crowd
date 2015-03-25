@@ -1,10 +1,24 @@
+{-# LANGUAGE TemplateHaskell #-}
 module SimpleOptions
     ( module SimpleOptions
     , module Options.Applicative
     ) where
 
 import           Control.Monad.Trans.Writer
+import           Data.Version               (showVersion)
+import           Development.GitRev         (gitDirty, gitHash)
+import           Language.Haskell.TH.Syntax (lift)
 import           Options.Applicative
+
+simpleVersion version =
+    [|concat
+        [ "Version "
+        , $(lift $ showVersion version)
+        , ", Git revision "
+        , $gitHash
+        , if $gitDirty then " (dirty)" else ""
+        ]
+    |]
 
 simpleOptions :: String                          -- ^ version string
               -> String                          -- ^ header
