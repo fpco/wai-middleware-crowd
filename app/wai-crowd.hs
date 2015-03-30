@@ -95,4 +95,5 @@ main = do
            $ defaultCrowdSettings
     crowdMiddleware <- mkCrowdMiddleware cs
     app <- serviceToApp manager service
+    putStrLn $ "Listening on port " ++ show warpPort
     run warpPort $ crowdMiddleware app
