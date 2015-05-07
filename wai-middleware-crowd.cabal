@@ -17,7 +17,7 @@ library
                        Network.Wai.OpenId
                        Network.Wai.Approot
                        Network.Wai.ClientSession
-  build-depends:       base              >= 4.7 && < 4.8
+  build-depends:       base              >= 4.7 && < 5
                      , resourcet         >= 1.1
                      , text              >= 1.1
                      , http-client       >= 0.4
