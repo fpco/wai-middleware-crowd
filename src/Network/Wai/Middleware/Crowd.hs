@@ -16,6 +16,7 @@ module Network.Wai.Middleware.Crowd
       -- * Helpers
     , smartApproot
     , waiMiddlewareCrowdVersion
+    , getUserName
     ) where
 
 import           Blaze.ByteString.Builder   (fromByteString, toByteString)
@@ -25,6 +26,7 @@ import           Data.Monoid                ((<>))
 import qualified Data.Text                  as T
 import           Data.Text.Encoding         (decodeUtf8With, encodeUtf8)
 import           Data.Text.Encoding.Error   (lenientDecode)
+import qualified Data.Vault.Lazy            as Vault
 import           Data.Version               (Version)
 import           GHC.Generics               (Generic)
 import           Network.HTTP.Client        (Manager, newManager)
@@ -32,11 +34,13 @@ import           Network.HTTP.Client.TLS    (tlsManagerSettings)
 import           Network.HTTP.Types         (Header, status200, status303)
 import           Network.Wai                (Middleware, Request, pathInfo,
                                              rawPathInfo, rawQueryString,
-                                             responseBuilder, responseLBS)
+                                             responseBuilder, responseLBS,
+                                             vault)
 import           Network.Wai.Approot
 import           Network.Wai.ClientSession
 import           Network.Wai.OpenId
 import qualified Paths_wai_middleware_crowd as Paths
+import           System.IO.Unsafe           (unsafePerformIO)
 
 -- | Settings for creating the Crowd middleware.
 --
@@ -121,6 +125,19 @@ instance Binary CrowdState
 csKey :: S.ByteString
 csKey = "crowd_state"
 
+userKey :: Vault.Key S.ByteString
+userKey = unsafePerformIO Vault.newKey
+{-# NOINLINE userKey #-}
+
+-- | Get the username for the current user.
+--
+-- If called on a @Request@ behind the middleware, should always return a
+-- @Just@ value.
+--
+-- Since 0.1.1.0
+getUserName :: Request -> Maybe S.ByteString
+getUserName = Vault.lookup userKey . vault
+
 saveCrowdState :: Key -> Int -> CrowdState -> IO Header
 saveCrowdState key age cs = saveCookieValue key csKey age cs
 
@@ -137,7 +154,11 @@ mkCrowdMiddleware CrowdSettings {..} = do
         cs <- loadCookieValue key csKey req
 
         case cs of
-            Just (CSLoggedIn _) -> app req respond
+            Just (CSLoggedIn ident) ->
+                let req' = req
+                        { vault = Vault.insert userKey ident $ vault req
+                        }
+                 in app req' respond
             _ -> case pathInfo req of
                 ["_crowd_middleware", "complete"] -> do
                     eres <- openIdComplete req man
