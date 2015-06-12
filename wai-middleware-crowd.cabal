@@ -62,4 +62,4 @@ executable wai-crowd
 
 source-repository head
   type:     git
-  location: https://github.com/fpco/dev-tools
+  location: https://github.com/fpco/wai-middleware-crowd
