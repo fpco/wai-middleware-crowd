@@ -1,5 +1,5 @@
 name:                wai-middleware-crowd
-version:             0.1.1.1
+version:             0.1.1.2
 synopsis:            Middleware and utilities for using Atlassian Crowd authentication
 description:         See README
 license:             MIT
