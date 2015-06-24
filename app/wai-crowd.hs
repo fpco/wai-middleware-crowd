@@ -20,6 +20,7 @@ data BasicSettings = BasicSettings
     , keyFile   :: FilePath
     , crowdRoot :: T.Text
     , age       :: Int
+    , skipAuth  :: Bool
     }
     deriving Show
 
@@ -47,6 +48,10 @@ basicSettingsParser = BasicSettings
        <> metavar "COOKIE-AGE"
        <> help "Number of seconds to keep auth cookie active"
        <> value 3600 )
+    <*> switch
+        ( long "skip-auth"
+       <> help "Turn off Crowd authentication, useful for testing"
+        )
 
 data Service = ServiceFiles FileServer
              | ServiceProxy ReverseProxy
@@ -96,4 +101,4 @@ main = do
     crowdMiddleware <- mkCrowdMiddleware cs
     app <- serviceToApp manager service
     putStrLn $ "Listening on port " ++ show warpPort
-    run warpPort $ crowdMiddleware app
+    run warpPort $ if skipAuth then app else crowdMiddleware app
