@@ -1,5 +1,19 @@
 sudo: false
 
+deploy:
+  provider: s3
+  access_key_id: AKIAI5DCW74VHQYKQPAA
+  secret_access_key:
+    secure: "GCse55MSgoBz4vvAH41MiPNe2c3OsjqFslhGgv2c5fakjNXNAFG7rrftoh2/txzB7wle5U4fEU8JJfT/mIRhiEJ8//cOHLGJQZBeC1teiBipD8LfxLItCa32mlGjTwa/STDAW3KDluVamAWIN8CC/7v2SAuiQ/B4dqSL2p2MS40="
+  bucket: stackage-travis
+  acl: public_read
+  skip_cleanup: true
+  local_dir: to-travis
+  upload-dir: wai-crowd
+  on:
+      repo: fpco/wai-middleware-crowd
+    branch: master
+
 addons:
   apt:
     sources:
@@ -16,6 +30,9 @@ before_install:
 
 script:
   - stack +RTS -N2 -RTS --no-terminal test
+  - mkdir -p to-travis
+  - stack install --local-bin-path to-travis
+  - bzip2 to-travis/wai-crowd
 
 cache:
   directories:
