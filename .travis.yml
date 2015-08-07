@@ -2,7 +2,7 @@ sudo: false
 
 deploy:
   provider: s3
-  access_key_id: AKIAI5DCW74VHQYKQPAA
+  access_key_id: AKIAIAVQAXMLLEPM4I5A
   secret_access_key:
     secure: "GCse55MSgoBz4vvAH41MiPNe2c3OsjqFslhGgv2c5fakjNXNAFG7rrftoh2/txzB7wle5U4fEU8JJfT/mIRhiEJ8//cOHLGJQZBeC1teiBipD8LfxLItCa32mlGjTwa/STDAW3KDluVamAWIN8CC/7v2SAuiQ/B4dqSL2p2MS40="
   bucket: stackage-travis
