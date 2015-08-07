@@ -29,9 +29,9 @@ before_install:
   - chmod a+x ~/.local/bin/stack
 
 script:
-  - stack +RTS -N2 -RTS --no-terminal test
   - mkdir -p to-travis
-  - stack install --local-bin-path to-travis
+  - stack +RTS -N2 -RTS --no-terminal install --local-bin-path to-travis
+  - stack +RTS -N2 -RTS --no-terminal test
   - bzip2 to-travis/wai-crowd
 
 cache:
