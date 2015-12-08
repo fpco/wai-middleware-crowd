@@ -14,6 +14,7 @@ import           Network.Wai.Handler.Warp       (run)
 import           Network.Wai.Middleware.Crowd
 import           SimpleOptions
 import           Web.ClientSession              (getKey)
+import           Rdr2tls
 
 data BasicSettings = BasicSettings
     { warpPort  :: Int
@@ -21,6 +22,7 @@ data BasicSettings = BasicSettings
     , crowdRoot :: T.Text
     , age       :: Int
     , skipAuth  :: Bool
+    , requireTls :: Bool
     }
     deriving Show
 
@@ -51,6 +53,10 @@ basicSettingsParser = BasicSettings
     <*> switch
         ( long "skip-auth"
        <> help "Turn off Crowd authentication, useful for testing"
+        )
+    <*> switch
+        ( long "require-tls"
+       <> help "Require requests come in over a secure connection (determined via headers)"
         )
 
 data Service = ServiceFiles FileServer
@@ -101,4 +107,6 @@ main = do
     crowdMiddleware <- mkCrowdMiddleware cs
     app <- serviceToApp manager service
     putStrLn $ "Listening on port " ++ show warpPort
-    run warpPort $ if skipAuth then app else crowdMiddleware app
+    run warpPort
+        $ (if requireTls then rdr2tls else id)
+          (if skipAuth then app else crowdMiddleware app)
