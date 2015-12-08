@@ -192,7 +192,6 @@ mkCrowdMiddleware CrowdSettings {..} = do
                         , cookie
                         ]
                         "Logging in"
-                    app req respond
 
 -- | Current version
 --
