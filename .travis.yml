@@ -1,5 +1,38 @@
+# Use new container infrastructure to enable caching
 sudo: false
 
+# Choose a lightweight base image; we provide our own build tools.
+language: c
+
+# GHC depends on GMP. You can add other dependencies here as well.
+addons:
+  apt:
+    packages:
+    - libgmp-dev
+
+before_install:
+# Download and unpack the stack executable
+- mkdir -p ~/.local/bin
+- export PATH=$HOME/.local/bin:$PATH
+- travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+
+# This line does all of the work: installs GHC if necessary, build the library,
+# executables, and test suites, and runs the test suites. --no-terminal works
+# around some quirks in Travis's terminal implementation.
+script:
+- stack --no-terminal --install-ghc test
+
+# Prepare the upload to S3
+- mkdir -p to-travis
+- cp $(stack exec which wai-crowd) to-travis
+- bzip2 to-travis/wai-crowd
+
+# Caching so the next build will be fast too.
+cache:
+  directories:
+  - $HOME/.stack
+
+# Upload the resulting executable to S3
 deploy:
   provider: s3
   access_key_id: AKIAIAVQAXMLLEPM4I5A
@@ -13,29 +46,3 @@ deploy:
   on:
     repo: fpco/wai-middleware-crowd
     branch: master
-
-addons:
-  apt:
-    sources:
-    - hvr-ghc
-    packages:
-    - ghc-7.8.4
-
-before_install:
-  # stack
-  - mkdir -p ~/.local/bin
-  - export PATH=$HOME/.local/bin:/opt/ghc/7.8.4/bin:$PATH
-  - travis_retry curl -L https://github.com/commercialhaskell/stack/releases/download/v0.1.2.0/stack-0.1.2.0-x86_64-linux.gz | gunzip > ~/.local/bin/stack
-  - chmod a+x ~/.local/bin/stack
-
-script:
-  - stack +RTS -N2 -RTS --no-terminal build
-  - stack +RTS -N2 -RTS --no-terminal test
-
-  - mkdir -p to-travis
-  - cp $(stack exec which wai-crowd) to-travis
-  - bzip2 to-travis/wai-crowd
-
-cache:
-  directories:
-    - $HOME/.stack
