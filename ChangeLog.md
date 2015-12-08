@@ -1,6 +1,7 @@
 ## 0.1.3
 
 * --require-tls command line option
+* SECURITY FIX: Don't run the app when redirecting for login
 
 ## 0.1.2
 
