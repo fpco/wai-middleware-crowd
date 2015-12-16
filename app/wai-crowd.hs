@@ -9,7 +9,7 @@ import           Network.HTTP.ReverseProxy      (ProxyDest (..), WaiProxyRespons
                                                  defaultOnExc, waiProxyTo)
 import           Network.Wai                    (Application)
 import           Network.Wai.Application.Static (defaultFileServerSettings,
-                                                 staticApp)
+                                                 staticApp, ssRedirectToIndex)
 import           Network.Wai.Handler.Warp       (run)
 import           Network.Wai.Middleware.Crowd
 import           SimpleOptions
@@ -64,11 +64,16 @@ data Service = ServiceFiles FileServer
 
 data FileServer = FileServer
     { fsRoot :: FilePath
+    , fsRedirectToIndex :: Bool
     }
 
 fileServerParser = FileServer
     <$> (argument str
          (metavar "ROOT-DIR" <> value "."))
+    <*> switch
+        ( long "redirect-to-index"
+       <> help "Redirect to the actual index file, not leaving the URL containing the directory name"
+        )
 
 data ReverseProxy = ReverseProxy
     { rpHost :: String
@@ -82,7 +87,9 @@ reverseProxyParser = ReverseProxy
 
 serviceToApp :: Manager -> Service -> IO Application
 serviceToApp _ (ServiceFiles FileServer {..}) =
-    return $ staticApp $ defaultFileServerSettings $ fromString fsRoot
+    return $ staticApp (defaultFileServerSettings $ fromString fsRoot)
+        { ssRedirectToIndex = fsRedirectToIndex
+        }
 serviceToApp manager (ServiceProxy (ReverseProxy host port)) =
     return $ waiProxyTo
         (const $ return $ WPRProxyDest $ ProxyDest (fromString host) port)

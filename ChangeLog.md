@@ -1,3 +1,7 @@
+## 0.1.4
+
+* --redirect-to-index command line option
+
 ## 0.1.3
 
 * --require-tls command line option
