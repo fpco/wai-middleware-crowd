@@ -9,7 +9,7 @@ import           Network.HTTP.ReverseProxy      (ProxyDest (..), WaiProxyRespons
                                                  defaultOnExc, waiProxyTo)
 import           Network.Wai                    (Application)
 import           Network.Wai.Application.Static (defaultFileServerSettings,
-                                                 staticApp, ssRedirectToIndex)
+                                                 staticApp, ssRedirectToIndex, ssAddTrailingSlash)
 import           Network.Wai.Handler.Warp       (run)
 import           Network.Wai.Middleware.Crowd
 import           SimpleOptions
@@ -65,6 +65,7 @@ data Service = ServiceFiles FileServer
 data FileServer = FileServer
     { fsRoot :: FilePath
     , fsRedirectToIndex :: Bool
+    , fsAddTrailingSlash :: Bool
     }
 
 fileServerParser = FileServer
@@ -73,6 +74,10 @@ fileServerParser = FileServer
     <*> switch
         ( long "redirect-to-index"
        <> help "Redirect to the actual index file, not leaving the URL containing the directory name"
+        )
+    <*> switch
+        ( long "add-trailing-slash"
+       <> help "Add a trailing slash to directory names"
         )
 
 data ReverseProxy = ReverseProxy
@@ -89,6 +94,7 @@ serviceToApp :: Manager -> Service -> IO Application
 serviceToApp _ (ServiceFiles FileServer {..}) =
     return $ staticApp (defaultFileServerSettings $ fromString fsRoot)
         { ssRedirectToIndex = fsRedirectToIndex
+        , ssAddTrailingSlash = fsAddTrailingSlash
         }
 serviceToApp manager (ServiceProxy (ReverseProxy host port)) =
     return $ waiProxyTo

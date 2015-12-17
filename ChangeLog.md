@@ -1,6 +1,7 @@
 ## 0.1.4
 
 * --redirect-to-index command line option
+* --add-trailing-slash command line option
 
 ## 0.1.3
 
