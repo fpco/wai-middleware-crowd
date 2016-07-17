@@ -1,3 +1,7 @@
+## 0.1.4.1
+
+* Support for 32-bit Linux [#4](https://github.com/fpco/wai-middleware-crowd/issues/4)
+
 ## 0.1.4
 
 * --redirect-to-index command line option

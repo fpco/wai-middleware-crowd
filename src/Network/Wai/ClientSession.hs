@@ -51,7 +51,7 @@ loadCookieValue key name req = do
         Right v'' <- return $ B64.decode v'
         Just v''' <- return $ decrypt key v''
         Right (_, _, Wrapper res expi) <- return $ decodeOrFail $ L.fromStrict v'''
-        guard $ expi >= now
+        guard $ expi >= fromIntegral now
         return res
 
 saveCookieValue :: Binary value
@@ -64,7 +64,7 @@ saveCookieValue key name age value = do
     CTime now <- epochTime
     value' <- encryptIO key $ L.toStrict $ encode Wrapper
         { contained = value
-        , expires = now + fromIntegral age
+        , expires = fromIntegral now + fromIntegral age
         }
     return ("Set-Cookie", toByteString $ renderSetCookie def
         { setCookieName = name
