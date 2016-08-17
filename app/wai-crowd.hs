@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE TemplateHaskell   #-}
+import           Data.Monoid                    ((<>))
 import           Data.String                    (fromString)
 import qualified Data.Text                      as T
 import           Network.HTTP.Client            (Manager, newManager)

@@ -1,3 +1,7 @@
+## 0.1.4.2
+
+* optparse-applicative-0.13.0.0
+
 ## 0.1.4.1
 
 * Support for 32-bit Linux [#4](https://github.com/fpco/wai-middleware-crowd/issues/4)

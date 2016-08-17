@@ -5,6 +5,7 @@ module SimpleOptions
     ) where
 
 import           Control.Monad.Trans.Writer
+import           Data.Monoid                ((<>))
 import           Data.Version               (showVersion)
 import           Development.GitRev         (gitDirty, gitHash)
 import           Language.Haskell.TH.Syntax (lift)

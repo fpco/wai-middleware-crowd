@@ -1,5 +1,5 @@
 name:                wai-middleware-crowd
-version:             0.1.4.1
+version:             0.1.4.2
 synopsis:            Middleware and utilities for using Atlassian Crowd authentication
 description:         See README
 license:             MIT
@@ -53,7 +53,7 @@ executable wai-crowd
                      , http-client-tls
                      , http-reverse-proxy    >= 0.4
                      , http-types
-                     , optparse-applicative  >= 0.11 && < 0.13
+                     , optparse-applicative  >= 0.11 && < 0.14
                      , template-haskell
                      , text
                      , transformers
